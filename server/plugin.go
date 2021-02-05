@@ -2,16 +2,19 @@ package main
 
 import (
 	"errors"
-	"github.com/lunny/html2md"
-	"github.com/mattermost/mattermost-server/model"
-	"github.com/mattermost/mattermost-server/plugin"
-	"github.com/wbernest/atom-parser"
-	"github.com/wbernest/rss-v2-parser"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/lunny/html2md"
+	"github.com/mattermost/mattermost-server/model"
+	"github.com/mattermost/mattermost-server/plugin"
+	goFeed "github.com/mmcdole/gofeed"
+	atomparser "github.com/wbernest/atom-parser"
+	rssv2parser "github.com/wbernest/rss-v2-parser"
 )
 
 //const RSSFEED_ICON_URL = "./plugins/rssfeed/assets/rss.png"
@@ -155,41 +158,70 @@ func (p *RSSFeedPlugin) processRSSV2Subscription(subscription *Subscription) err
 	return nil
 }
 
+// CompareItemsBetweenOldAndNew ...
+func CompareItemsBetweenOldAndNew(feedOld *goFeed.Feed, feedNew *goFeed.Feed) []*goFeed.Item {
+	itemList := []*goFeed.Item{}
+
+	for _, item1 := range feedNew.Items {
+		exists := false
+		for _, item2 := range feedOld.Items {
+			if item1.GUID == item2.GUID {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			itemList = append(itemList, item1)
+		}
+	}
+	return itemList
+}
+
 func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) error {
 	// get new rss feed string from url
-	newFeed, newFeedString, err := atomparser.ParseURL(subscription.URL)
-	if err != nil {
-		return err
-	}
+	// newFeed, newFeedString, err := atomparser.ParseURL(subscription.URL)
+	// if err != nil {
+	// 	return err
+	// }
+
+	fp := goFeed.NewParser()
+	newFeed, _ := fp.ParseURL(subscription.URL)
+	oldFeed, _ := fp.ParseString(subscription.XML)
 
 	// retrieve old xml feed from database
-	oldFeed, err := atomparser.ParseString(subscription.XML)
-	if err != nil {
-		return err
-	}
+	// oldFeed, err := atomparser.ParseString(subscription.XML)
+	// if err != nil {
+	// 	return err
+	// }
 
-	items := atomparser.CompareItemsBetweenOldAndNew(oldFeed, newFeed)
+	items := CompareItemsBetweenOldAndNew(oldFeed, newFeed)
 
 	for _, item := range items {
 		post := newFeed.Title + "\n" + item.Title + "\n"
 
-		for _, link := range item.Link {
-			if link.Rel == "alternate" {
-				post = post + link.Href + "\n"
-			}
-		}
-		if item.Content != nil {
-			if item.Content.Type != "text" {
-				post = post + html2md.Convert(item.Content.Body) + "\n"
-			} else {
-				post = post + item.Content.Body + "\n"
-			}
-		} else {
-			p.API.LogInfo("Missing content in atom feed item",
-				"subscription_url", subscription.URL,
-				"item_title", item.Title)
-			post = post + "\n"
-		}
+		// for _, link := range item.Link {
+		// 	if link.Rel == "alternate" {
+		// 		post = post + link.Href + "\n"
+		// 	}
+		// }
+
+		post = post + "Tags: " + strings.Join(item.Categories, ", ") + "\n"
+		post = post + item.Link + "\n"
+		// if item.Content != nil {
+		// 	if item.Content.Type != "text" {
+		// 		post = "test avant le post" + post + html2md.Convert(item.Content.Body) + "\n Hello test pour voir si ça marche"
+		// 	} else {
+		// 		post = post + item.Content.Body + "\n"
+		// 	}
+		// } else {
+		// 	p.API.LogInfo("Missing content in atom feed item",
+		// 		"subscription_url", subscription.URL,
+		// 		"item_title", item.Title)
+		// 	post = post + "\n"
+		// }
+
+		// TODO : gestion erreur, duplication voir fonction update bdd, commentaire, implementer la fonctionnalité d'affichage des tags
+
 		p.createBotPost(subscription.ChannelID, post, "custom_git_pr")
 	}
 

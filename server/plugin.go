@@ -220,7 +220,7 @@ func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) erro
 		// 	post = post + "\n"
 		// }
 
-		// TODO : gestion erreur, duplication voir fonction update bdd, commentaire, implementer la fonctionnalité d'affichage des tags
+		// TODO : gestion erreur, duplication voir fonction update bdd, commentaire, implementer la fonctionnalité d'affichage des tags, ajouter http request
 
 		p.createBotPost(subscription.ChannelID, post, "custom_git_pr")
 	}

@@ -185,12 +185,12 @@ func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) erro
 		return err
 	}
 	// Parse response body
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 	// Convert parsed body to string
-	newFeedString := string(bodyBytes)
+	newFeedString := string(body)
 
 	fp := goFeed.NewParser()
 	newFeed, _ := fp.ParseURL(subscription.URL)

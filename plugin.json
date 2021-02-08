@@ -28,7 +28,7 @@
             },
             {
                 "key": "ShowTags",
-                "display_name": "Show tags in RSS post.",
+                "display_name": "Show tags in RSS Atom post.",
                 "type": "bool",
                 "help_text": "Use this field to show or hide tags in rss post."
             }

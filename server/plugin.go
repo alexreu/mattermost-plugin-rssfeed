@@ -184,6 +184,7 @@ func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) erro
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	// Parse response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

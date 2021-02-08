@@ -178,49 +178,34 @@ func CompareItemsBetweenOldAndNew(feedOld *goFeed.Feed, feedNew *goFeed.Feed) []
 }
 
 func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) error {
+	config := p.getConfiguration()
 	// get new rss feed string from url
-	// newFeed, newFeedString, err := atomparser.ParseURL(subscription.URL)
-	// if err != nil {
-	// 	return err
-	// }
+	resp, err := http.Get(subscription.URL)
+	if err != nil {
+		return err
+	}
+	// Parse response body
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	// Convert parsed body to string
+	newFeedString := string(bodyBytes)
 
 	fp := goFeed.NewParser()
 	newFeed, _ := fp.ParseURL(subscription.URL)
 	oldFeed, _ := fp.ParseString(subscription.XML)
-
-	// retrieve old xml feed from database
-	// oldFeed, err := atomparser.ParseString(subscription.XML)
-	// if err != nil {
-	// 	return err
-	// }
 
 	items := CompareItemsBetweenOldAndNew(oldFeed, newFeed)
 
 	for _, item := range items {
 		post := newFeed.Title + "\n" + item.Title + "\n"
 
-		// for _, link := range item.Link {
-		// 	if link.Rel == "alternate" {
-		// 		post = post + link.Href + "\n"
-		// 	}
-		// }
+		if config.ShowTags {
+			post = post + "**Tags:** " + strings.Join(item.Categories, ", ") + "\n"
+		}
 
-		post = post + "Tags: " + strings.Join(item.Categories, ", ") + "\n"
 		post = post + item.Link + "\n"
-		// if item.Content != nil {
-		// 	if item.Content.Type != "text" {
-		// 		post = "test avant le post" + post + html2md.Convert(item.Content.Body) + "\n Hello test pour voir si ça marche"
-		// 	} else {
-		// 		post = post + item.Content.Body + "\n"
-		// 	}
-		// } else {
-		// 	p.API.LogInfo("Missing content in atom feed item",
-		// 		"subscription_url", subscription.URL,
-		// 		"item_title", item.Title)
-		// 	post = post + "\n"
-		// }
-
-		// TODO : gestion erreur, duplication voir fonction update bdd, commentaire, implementer la fonctionnalité d'affichage des tags, ajouter http request
 
 		p.createBotPost(subscription.ChannelID, post, "custom_git_pr")
 	}
